@@ -1,0 +1,116 @@
+#!/bin/sh
+#
+# bulk-config - Set/get configuration settings or MQTT topics
+#
+# Copyright (C) 2021 Linzhi Ltd.
+#
+# This work is licensed under the terms of the MIT License.
+# A copy of the license can be found in the file COPYING.txt
+#
+
+
+DEFAULT_TIMEOUT_S=10
+
+
+usage()
+{
+	cat <<EOF 1>&2
+usage: $0 [-t seconds] [-w seconds] [-x] [0/|1/]var[=value]|/topic[=payload]
+          [host|file ...]
+
+-t seconds
+    if retrieving, wait this many seconds before giving up (default: wait
+    $DEFAULT_TIMEOUT_S seconds)
+-w seconds
+    wait this many seconds between publish/subscribe actions (default: don't
+    wait)
+-x  show shell commands (set -x)
+EOF
+	exit 1
+}
+
+
+sleep=:
+timeout="-W $DEFAULT_TIMEOUT_S"
+while [ "$1" ]; do
+	case "$1" in
+	-t)	case "$2" in
+		0)	timeout=;;
+		"")	usage;;
+		*)	timeout="-W $2";;	
+		esac
+		shift;;
+	-w)	[ "$2" ] || usage
+		sleep="sleep $2"
+		shift;;
+	-x)	set -x;;
+	-*)	usage;;
+	*)	break;;
+	esac
+	shift
+done
+
+[ "$2" ] || usage
+
+var=${1%%=*}
+val=${1#*=}
+
+pub=true
+if [ "$var" = "$1" ]; then
+	pub=false
+fi
+
+shift
+
+topic=
+case "$var" in
+/*)	topic=$var;;
+0/*)	area=user0
+	var=${var#0/};;
+1/*)	area=user1
+	var=${var#1/};;
+*)	area=user;;
+esac
+
+if [ -z "$topic" ]; then
+	if $pub; then
+		topic=/config/$area/$var/set
+	else
+		topic=/config/$area/$var
+	fi
+fi
+
+failed=
+for n in "$@"; do
+	if [ -r "$n" ]; then
+		for m in `awk '{ print \$1 }' $n`; do
+			if $pub; then
+				mosquitto_pub -h "$m" -t "$topic" -m "$val" || {
+					echo "failed: $m" 1>&2
+					failed="$failed $n"
+				}
+			else
+				mosquitto_sub -h "$m" -t "$topic" \
+				    -C 1 $timeout -F "$m %p" || {
+					echo "failed: $m" 1>&2
+					failed="$failed $n"
+				}
+			fi
+			$sleep
+		done
+	else
+		if $pub; then
+			mosquitto_pub -h "$n" -t "$topic" -m "$val" || {
+				echo "failed: $n" 1>&2
+				failed="$failed $n"
+			}
+		else
+			mosquitto_sub -h "$n" -t "$topic" -C 1 $timeout \
+			    -F "$n %p" || {
+				echo "failed: $n" 1>&2
+				failed="$failed $n"
+			}
+		fi
+		$sleep
+	fi
+done

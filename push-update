@@ -1,0 +1,84 @@
+#!/bin/sh
+#
+# push-update - Push a firmware update to one or more miners
+#
+# Copyright (C) 2021 Linzhi Ltd.
+#
+# This work is licensed under the terms of the MIT License.
+# A copy of the license can be found in the file COPYING.txt
+#
+
+
+DEFAULT_WAIT_S=60
+
+
+usage()
+{
+	cat <<EOF 1>&2
+usage: $0 [-w seconds] [-x] fw.tar host|file ...
+
+-w seconds
+    wait the specified number of seconds between machines (to avoid large
+    changes in power demand). Default: $DEFAULT_WAIT_S seconds.
+-x
+    trace shell command execution
+EOF
+	exit 1
+}
+
+
+wait="sleep $DEFAULT_WAIT_S"
+while [ "$1" ]; do
+	case "$1" in
+	-w)	case "$2" in
+		0)	wait=:;;
+		"")	usage;;
+		*)	wait="sleep $2";;
+		esac
+		shift;;
+	-x)	set -x;;
+	-*)	usage;;
+	*)	break;;
+	esac
+	shift
+done
+
+if [ "`which mosquitto_pub`" ]; then
+	push()
+	{
+		mosquitto_pub -t /fw/update -h "$1" -f "$2" ||
+		    failed="$failed $1"
+	}
+else
+	push()
+	{
+		if scp "$2" "$1:"; then
+			ssh "$1" \
+			    "nohup fwupdated `basename \"$2\"` >/dev/null 2>&1 & exit" ||
+			    failed="$failed $1"
+		else
+			failed="$failed $1"
+		fi
+	}
+fi
+
+file=$1
+shift
+
+first=true
+failed=
+for n in "$@"; do
+	if [ -r "$n" ]; then
+		for m in `awk '{ print \$1 }' $n`; do
+			! $first && $wait
+			push "$m" "$file" && first=false
+		done
+	else
+		! $first && $wait
+		push "$n" "$file" && first=false
+	fi
+done
+if [ "$failed" ]; then
+	echo "failed:$failed" 1>&2
+	exit 1
+fi

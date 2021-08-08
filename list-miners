@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# list-miners - Obtain a list of miners from the crew JSON API
+#
+# Copyright (C) 2021 Linzhi Ltd.
+#
+# This work is licensed under the terms of the MIT License.
+# A copy of the license can be found in the file COPYING.txt
+#
+
+
+DEFAULT_PORT=81
+MAX_SILENT_S=3600
+
+
+usage()
+{
+	cat <<EOF 1>&2
+usage: $0 [-o fw-...tar] [-x] crew-addr[:crew-port] [query]
+
+-o file
+    only show miners with a firmware older than the date in the file name
+-x  trace shell command execution
+
+Queries are expressions in the jq syntax. Examples:
+.csum_version < 2	only machines that don't have version 2 of the checksum
+			files
+.coin == "etc"		only machines mining ETC
+.temp > 90		only machines with a peak temperature above 90 C
+EOF
+	exit 1
+}
+
+
+older=
+while [ "$1" ]; do
+	case "$1" in
+	-o)	day="20[2-9][0-9][01][0-9][0-3][0-9]"
+		time="[012][0-9][0-5][0-9]"
+		date=`echo "$2" |
+		    sed "/.*\($day-$time\).*/{s//\1/;s/-/Z/p;};d"`
+		if [ "$date" ] && s=`date +"%s" -d "$date" 2>/dev/null`; then
+			older="and .fw_date < $s"
+			shift 2
+			continue	
+		fi
+		echo "no date found in \"$2\"" 1>&2
+		exit 1;;
+	-x)	set -x;;
+	-*)	usage;;
+	*)	break;;
+	esac
+	shift
+done
+
+case "$1" in
+*:*)	addr=$1;;
+*)	addr=$1:$DEFAULT_PORT;;
+esac
+
+if [ "$2" ]; then
+	query="and ( $2 )"
+else
+	query=
+fi
+
+[ "$3" ] && usage
+
+curl -s $addr/miners |
+    jq -r ".[] | select(.last <= $MAX_SILENT_S $older $query) |
+        [ .ip, .name ] | @tsv" |
+    tr '\t' ' '

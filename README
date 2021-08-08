@@ -1,0 +1,127 @@
+Farm tools
+==========
+
+Copyright (C) 2021 Linzhi Ltd.
+
+This work is licensed under the terms of the MIT License.
+A copy of the license can be found in the file COPYING.txt
+
+
+This is a collection of scripts that help to perform routine operations on
+many machines.
+
+
+Prerequisites
+-------------
+
+These scripts are intended for use on Linux. The following packages have
+to be present:
+
+- curl
+- mosquitto-clients
+- jq
+
+
+Machine lists
+-------------
+
+The farm tools operate on lists of machines. These lists can either be given
+as machine addresses (by name or dotted quad) on the command line, e.g..
+
+  command d9 d10
+  command 10.0.0.28 10.0.0.29
+
+or via a file, e.g.,
+
+  (echo d9; echo d10) >my.list
+  command my.list
+
+When reading a host list from a file, only the first "word" (up to the first
+whitespace) of each line is used. The rest is ignored.
+
+
+list-miners
+-----------
+
+The script list-miners queries a crew node (the HTTP JSON API must be enabled
+and accessible) and retrieves the list of all machines known to it:
+
+  ./list-miners d9
+
+In this example, d9 is the name of a miner running crewd with the default API
+port (81). To use a different port, add :port, e.g.,
+
+  ./list-miners d9:90
+
+list-miners can select miners on various criteria. One is to compare the
+firmware version with the date on a firmware file, and only show miners that
+are running an older firmware:
+
+  ./list-miners -o fw-test-20210806-1024.tar d9
+
+Arbitrary criteria can be added as jq expressions. Examples:
+
+- Only machines that don't have version 2 of the checksum files
+
+  ./list-miners ... '.csum_version < 2'
+
+- Only machines mining ETC
+
+  ./list-miners ... '.coin == "etc"'
+
+- Only machines with a peak temperature above 90 C:
+
+  ./list-mienrs ... '.temp > 90'
+
+
+bulk-config
+-----------
+
+bulk-config can query and set configuration variables, or query and set MQTT
+topics directly.
+
+  ./bulk-config [-t seconds] [-w seconds] item[=value] host|file ...
+
+-t sets the timeout when waiting for a response. -w is the time between
+operations. Both are in seconds.
+
+Items can have the following form:
+
+  /foo/bar	MQTT topic
+  FOO		Configuration variable of the controller
+  0/BAR		Configuration variable of the hashboard in slot 0
+  1/BLAH	Idem, slot 1.
+
+A few examples:
+
+- Query card presence on all miners:
+
+  ./bulk-config /card/detect miners.list
+
+- On miners d9 and d10, set the power status polling interval to 60 seconds:
+
+  ./bulk-config POWER_POLL_INTERVAL=60 d9 d10
+
+- Slowly reboot a list of miners (one per minute):
+
+  ./bulk-config -w 60 /fw/update=reboot miners.list
+
+- Show which boards are ignored:
+
+  ./bulk-config 0/IGNORE miners.list
+  ./bulk-config 1/IGNORE miners.list
+
+
+Bulk firmware update
+--------------------
+
+The push-update sends a firmware update to a number of machines. It uses MQTT
+if available. Otherwise, it falls back to copying the firmware file via scp,
+and starting the update process via ssh.
+
+Update all machines:
+
+  ./push-update fw-test-20210601-1508.tar miners.list
+
+The option -w seconds controls the delay between machines, to avoid large
+changes in power consumption. The default is 60 seconds.
