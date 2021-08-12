@@ -11,6 +11,8 @@
 
 DEFAULT_TIMEOUT_S=10
 
+MOSQ_ERR_TIMEOUT=27
+
 
 usage()
 {
@@ -81,6 +83,7 @@ if [ -z "$topic" ]; then
 fi
 
 failed=
+to=
 for n in "$@"; do
 	if [ -r "$n" ]; then
 		for m in `awk '{ print \$1 }' $n`; do
@@ -92,8 +95,13 @@ for n in "$@"; do
 			else
 				mosquitto_sub -h "$m" -t "$topic" \
 				    -C 1 $timeout -F "$m %p" || {
-					echo "failed: $m" 1>&2
-					failed="$failed $n"
+					if [ "$?" = $MOSQ_ERR_TIMEOUT ]; then
+						echo "timeout: $m" 1>&2
+						to="$to $m"
+					else
+						echo "failed: $m" 1>&2
+						failed="$failed $m"
+					fi
 				}
 			fi
 			$sleep
@@ -107,10 +115,24 @@ for n in "$@"; do
 		else
 			mosquitto_sub -h "$n" -t "$topic" -C 1 $timeout \
 			    -F "$n %p" || {
-				echo "failed: $n" 1>&2
-				failed="$failed $n"
+				if [ "$?" = $MOSQ_ERR_TIMEOUT ]; then
+					echo "timeout: $n" 1>&2
+					to="$to $n"
+				else
+					echo "failed: $n" 1>&2
+					failed="$failed $n"
+				fi
 			}
 		fi
 		$sleep
 	fi
 done
+
+if [ "$failed" ]; then
+	set - "$failed"
+	echo "$# failed:$failed" 1>&2
+fi
+if [ "$to" ]; then
+	set - "$to"
+	echo "$# timeout:$to" 1>&2
+fi

@@ -116,9 +116,9 @@ A few examples:
   ./bulk-config 0/IGNORE miners.list
   ./bulk-config 1/IGNORE miners.list
 
-Known issue: if a configuration variable is not set or an MQTT topic has no
-value, then the read will time out, just as if the connection had not been
-established.
+If a configuration variable is not set or an MQTT topic has no value, then
+the read will time out. This is reported separately from failure to establish
+communication.
 
 
 Bulk firmware update
