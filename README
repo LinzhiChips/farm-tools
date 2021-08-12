@@ -53,6 +53,11 @@ port (81). To use a different port, add :port, e.g.,
 
   ./list-miners d9:90
 
+Instead of directly querying a miner, crew data downloaded to a file from
+Crew > Miners > Download can also be used, e.g.,
+
+  ./list-miners ~/Download/miners-2021-08-10T15_15_38Z.json
+
 list-miners can select miners on various criteria. One is to compare the
 firmware version with the date on a firmware file, and only show miners that
 are running an older firmware:
@@ -110,6 +115,10 @@ A few examples:
 
   ./bulk-config 0/IGNORE miners.list
   ./bulk-config 1/IGNORE miners.list
+
+Known issue: if a configuration variable is not set or an MQTT topic has no
+value, then the read will time out, just as if the connection had not been
+established.
 
 
 Bulk firmware update

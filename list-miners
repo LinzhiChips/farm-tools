@@ -17,6 +17,7 @@ usage()
 {
 	cat <<EOF 1>&2
 usage: $0 [-o fw-...tar] [-x] crew-addr[:crew-port] [query]
+       $0 [-o fw-...tar] [-x] miners.json [query]
 
 -o file
     only show miners with a firmware older than the date in the file name
@@ -53,10 +54,14 @@ while [ "$1" ]; do
 	shift
 done
 
-case "$1" in
-*:*)	addr=$1;;
-*)	addr=$1:$DEFAULT_PORT;;
-esac
+if [ -f "$1" ]; then
+	addr=
+else
+	case "$1" in
+	*:*)	addr=$1;;
+	*)	addr=$1:$DEFAULT_PORT;;
+	esac
+fi
 
 if [ "$2" ]; then
 	query="and ( $2 )"
@@ -66,7 +71,12 @@ fi
 
 [ "$3" ] && usage
 
-curl -s $addr/miners |
-    jq -r ".[] | select(.last <= $MAX_SILENT_S $older $query) |
+(
+	if [ "$addr" ]; then
+		curl -s $addr/miners
+	else
+		cat "$1"
+	fi
+) | jq -r ".[] | select(.last <= $MAX_SILENT_S $older $query) |
         [ .ip, .name ] | @tsv" |
     tr '\t' ' '
