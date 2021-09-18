@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# mosq - Wrapper for common uses of mosquitto_pub and mosquitto_sub
+#
+# Copyright (C) 2021 Linzhi Ltd.
+#
+# This work is licensed under the terms of the MIT License.
+# A copy of the license can be found in the file COPYING.txt
+#
+
+
+usage()
+{
+	echo "usage: $0 [-q qos] [-r] [-v] [host] /topic ... [msg ...]" 1>&2
+}
+
+host=
+topics=
+msg=
+opts=
+while [ "$1" ]; do
+	case "$1" in
+	-r|-v)	opts="$opts $1";;
+	-q)	[ "$2" ] || usage
+		opts="$opts $1 $2"
+		shift;;
+	/*)	topics="$topics -t $1";;
+	*)	if [ -z "$topics" ]; then
+			[ -z "$host" ] || usage
+			host="-h $1"
+		elif [ -z "$msg" ]; then
+			msg=$1
+		else
+			msg="$msg $1"
+		fi
+	esac
+	shift
+done
+
+if [ "$msg" ]; then
+	mosquitto_pub $opts $host $topics -m "$msg"
+else
+	mosquitto_sub $opts $host $topics
+fi

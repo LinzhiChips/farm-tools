@@ -134,3 +134,23 @@ Update all machines:
 
 The option -w seconds controls the delay between machines, to avoid large
 changes in power consumption. The default is 60 seconds.
+
+
+Mosquitto-clients wrapper
+-------------------------
+
+mosquitto_pub and mosquitto_sub are a bit awkward to use. "mosq" is a wrapper
+that simplifies the most common operations:
+
+Publishing:
+
+  mosq [-q qos] [-r] [-v] [host] /topic msg ...
+
+Subscribing:
+
+  mosq [-q qos] [-v] [host] /topic ...
+
+The options -q, -r, and -v are passed to the Mosquitto clients. If multiple
+message arguments are given, they are concatenated into a single
+space-separated string. Detection of topics relies on the convention of using
+a leading slash.
