@@ -17,7 +17,8 @@ MOSQ_ERR_TIMEOUT=27
 usage()
 {
 	cat <<EOF 1>&2
-usage: $0 [-t seconds] [-w seconds] [-x] [0/|1/]var[=value]|/topic[=payload]
+usage: $0 [-t seconds] [-w seconds] [-x]
+          [0/|1/]var[=value]|/topic[?cond][=payload]
           [host|file ...]
 
 -t seconds
@@ -64,6 +65,15 @@ fi
 
 shift
 
+cond=${var##*\?}
+if [ "$cond" = "$var" ]; then
+	cond=
+	have_cond=false
+else
+	have_cond=true
+fi
+var=${var%\?*}
+
 topic=
 case "$var" in
 /*)	topic=$var;;
@@ -74,34 +84,51 @@ case "$var" in
 *)	area=user;;
 esac
 
-if [ -z "$topic" ]; then
-	if $pub; then
-		topic=/config/$area/$var/set
-	else
-		topic=/config/$area/$var
-	fi
+if [ "$topic" ]; then
+	pub_topic=$topic
+	sub_topic=$topic
+else
+	pub_topic=/config/$area/$var/set
+	sub_topic=/config/$area/$var
 fi
 
 
 op()
 {
 	local name=$1
+	local pub_this=$pub
 
-	if $pub; then
-		mosquitto_pub -h "$name" -t "$topic" -m "$val" || {
+	if $have_cond; then
+		pub_this=false
+	fi
+	if $have_cond || ! $pub; then
+		res=`mosquitto_sub -h "$name" -t "$sub_topic" -C 1 $timeout \
+		    -F "$name %p"`
+		case "$?" in
+		0)	payload=${res#* }
+			if $have_cond && [ "$cond" = "$payload" ]; then
+				echo "$res (MATCH)"
+				pub_this=$pub
+			else
+				echo "$res"
+			fi;;
+		$MOSQ_ERR_TIMEOUT)
+			to="$to $name"
+			if $have_cond && [ -z "$cond" ]; then
+				echo "$name: timeout (MATCH)"
+				pub_this=$pub
+			else
+				echo "timeout: $name" 1>&2
+			fi;;
+		*)	echo "failed: $name" 1>&2
+			failed="$failed $name"
+			return;;
+		esac
+	fi
+	if $pub_this; then
+		mosquitto_pub -h "$name" -t "$pub_topic" -m "$val" || {
 			echo "failed: $name" 1>&2
 			failed="$failed $name"
-		}
-	else
-		mosquitto_sub -h "$name" -t "$topic" -C 1 $timeout \
-		    -F "$name %p" || {
-			if [ "$?" = $MOSQ_ERR_TIMEOUT ]; then
-				echo "timeout: $name" 1>&2
-				to="$to $name"
-			else
-				echo "failed: $name" 1>&2
-				failed="$failed $name"
-			fi
 		}
 	fi
 	$sleep
@@ -121,10 +148,10 @@ for n in "$@"; do
 done
 
 if [ "$failed" ]; then
-	set - "$failed"
+	set - $failed
 	echo "$# failed:$failed" 1>&2
 fi
 if [ "$to" ]; then
-	set - "$to"
+	set - $to
 	echo "$# timeout:$to" 1>&2
 fi

@@ -85,7 +85,7 @@ bulk-config
 bulk-config can query and set configuration variables, or query and set MQTT
 topics directly.
 
-  ./bulk-config [-t seconds] [-w seconds] item[=value] host|file ...
+  ./bulk-config [-t seconds] [-w seconds] item[?condition][=value] host|file ...
 
 -t sets the timeout when waiting for a response. -w is the time between
 operations. Both are in seconds.
@@ -96,6 +96,15 @@ Items can have the following form:
   FOO		Configuration variable of the controller
   0/BAR		Configuration variable of the hashboard in slot 0
   1/BLAH	Idem, slot 1.
+
+If only the item is present, it is read and its value printed. If also a
+condition is present, e.g., FOO?y, bulk-config indicates whether the value
+obtained matches the condition value. If the condition value is an empty
+string, e.g., FOO?, it matches empty strings and timeouts.
+
+If a new value is present, e.g., FOO=y, then it is assigned to the item. If
+both condition and new value are present, the new value is only assigned if
+the condition is met.
 
 A few examples:
 
