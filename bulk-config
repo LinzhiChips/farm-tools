@@ -82,49 +82,41 @@ if [ -z "$topic" ]; then
 	fi
 fi
 
+
+op()
+{
+	local name=$1
+
+	if $pub; then
+		mosquitto_pub -h "$name" -t "$topic" -m "$val" || {
+			echo "failed: $name" 1>&2
+			failed="$failed $name"
+		}
+	else
+		mosquitto_sub -h "$name" -t "$topic" -C 1 $timeout \
+		    -F "$name %p" || {
+			if [ "$?" = $MOSQ_ERR_TIMEOUT ]; then
+				echo "timeout: $name" 1>&2
+				to="$to $name"
+			else
+				echo "failed: $name" 1>&2
+				failed="$failed $name"
+			fi
+		}
+	fi
+	$sleep
+}
+
+
 failed=
 to=
 for n in "$@"; do
 	if [ -r "$n" ]; then
 		for m in `awk '{ print \$1 }' $n`; do
-			if $pub; then
-				mosquitto_pub -h "$m" -t "$topic" -m "$val" || {
-					echo "failed: $m" 1>&2
-					failed="$failed $n"
-				}
-			else
-				mosquitto_sub -h "$m" -t "$topic" \
-				    -C 1 $timeout -F "$m %p" || {
-					if [ "$?" = $MOSQ_ERR_TIMEOUT ]; then
-						echo "timeout: $m" 1>&2
-						to="$to $m"
-					else
-						echo "failed: $m" 1>&2
-						failed="$failed $m"
-					fi
-				}
-			fi
-			$sleep
+			op "$m"
 		done
 	else
-		if $pub; then
-			mosquitto_pub -h "$n" -t "$topic" -m "$val" || {
-				echo "failed: $n" 1>&2
-				failed="$failed $n"
-			}
-		else
-			mosquitto_sub -h "$n" -t "$topic" -C 1 $timeout \
-			    -F "$n %p" || {
-				if [ "$?" = $MOSQ_ERR_TIMEOUT ]; then
-					echo "timeout: $n" 1>&2
-					to="$to $n"
-				else
-					echo "failed: $n" 1>&2
-					failed="$failed $n"
-				fi
-			}
-		fi
-		$sleep
+		op "$n"
 	fi
 done
 
