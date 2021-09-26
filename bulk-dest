@@ -1,0 +1,122 @@
+#!/bin/bash
+#
+# bulk-dest - Update destination lists on multiple miners
+#
+# Copyright (C) 2021 Linzhi Ltd.
+#
+# This work is licensed under the terms of the MIT License.
+# A copy of the license can be found in the file COPYING.txt
+#
+
+
+usage()
+{
+cat <<EOF 1>&2
+usage: $0 [-a] [-d] [-f] [-v] [-x] destination-file coin host|file ...
+
+-a  activate the first enabled destination (default: keep current destination)
+-f  force: don't fail if no destination is enabled
+-d  dry-run: print the set-assoc.py invocation but don't run it
+-v  run set-assoc.py in verbose mode
+-x  set shell tracing with set -x
+EOF
+	exit 1
+}
+
+
+dry_run=false
+activate=false
+force=false
+verbose=
+while [ "$1" ]; do
+	case "$1" in
+	-a)	activate=true;;
+	-d)	dry_run=true;;
+	-f)	force=true;;
+	-v)	verbose=-v;;
+	-x)	set -x;;
+	-*)	usage;;
+	*)	break;;
+	esac
+	shift
+done
+
+[ "$2" ] || usage
+
+case "$2" in
+etc|ETC)	coin=etc
+		disable="eth\\|ubq";;
+eth|ETH)	coin=eth
+		disable="etc\\|ubq";;
+ubq|UBQ)	coin=ubq
+		disable="etc\\|eth";;
+*)		echo "warning: don't know how to mine \"$2\", assuming \"eth\""\
+		  1>&2
+		coin=eth
+		disable="etc\\|ubq";;
+esac
+
+eval "`grep -v '^#' \"$1\" | grep -v @`"
+dest="`sed -e '/^#/d;/@/{s/=\('\"$disable\"'\)\\./=!\\1./;p;};d' \"$1\" |
+  tr '\n' ' '`"
+first="`sed -e '/^#/d;/^.*=\('\"$coin\"'\\..*@.*\) *$/{s//\\1/;q;};d' \"$1\"`"
+
+if [ -z "$first" ]; then
+	if $force; then
+		echo "warning: no destination is enabled" 1>&2
+	else
+		echo "no destination is enabled. use -f to accept \
+configuration anyway" 1>&2
+		exit 1
+	fi
+fi
+
+shift 2
+
+list=
+for n in "$@"; do
+	if [ -r "$n" ]; then
+		list="$list `awk '{ print \$1 }' $n`"
+	else
+		list="$list $n"
+	fi
+done
+
+
+me=`type -p "$0"`
+if [ -z "$me" ]; then
+        echo "$0: not found" 1>&2
+        exit 1
+fi
+me=`realpath "$me"` || exit
+dir=`dirname "$me/"` || exit
+
+
+set_assoc()
+{
+	if $dry_run; then
+		echo ./set-assoc.py "$@"
+	else
+		$dir/set-assoc.py "$@"
+	fi
+}
+
+
+set_dest()
+{
+	if $dry_run; then
+		echo ./bulk-config "$@"
+	else
+		$dir/bulk-config "$@"
+	fi
+}
+
+
+eval set_assoc $verbose -d DEST "$dest" $list
+if $activate; then
+	if [ "$first" ]; then
+		eval set_dest "/mine/dest-set=$first" "$@"
+	else
+		echo "warning: -a ignored" 1>&2
+	fi
+fi

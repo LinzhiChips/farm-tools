@@ -1,0 +1,10 @@
+# Wallets
+ETH=0x0123456789abcdef0123456789abcdef01234567
+ETC=0xfedcba9876543210fedcba9876543210fedcba98
+
+eth-crazy-as=eth.stratum1://$ETH.\${name}@asia.crazypool.org:3333
+eth-crazy-uw=eth.stratum1://$ETH.\${name}@us-west.crazypool.org:3333
+eth-crazy-eu=eth.stratum1://$ETH.\${name}@eu.crazypool.org:3333
+etc-crazy-as=etc.stratum1://$ETC.\${name}@asia.crazypool.org:7000
+etc-crazy-uw=etc.stratum1://$ETC.\${name}@us-west.crazypool.org:7000
+etc-crazy-eu=etc.stratum1://$ETC.\${name}@eu.crazypool.org:7000

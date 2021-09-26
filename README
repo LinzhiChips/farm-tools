@@ -17,9 +17,12 @@ Prerequisites
 These scripts are intended for use on Linux. The following packages have
 to be present:
 
+- bash
 - curl
-- mosquitto-clients
 - jq
+- mosquitto-clients
+- python3
+- python3-paho-mqtt
 
 
 Machine lists
@@ -133,9 +136,9 @@ communication.
 Bulk firmware update
 --------------------
 
-The push-update sends a firmware update to a number of machines. It uses MQTT
-if available. Otherwise, it falls back to copying the firmware file via scp,
-and starting the update process via ssh.
+The push-update tool sends a firmware update to a number of machines. It uses
+MQTT if available. Otherwise, it falls back to copying the firmware file via
+scp, and starting the update process via ssh.
 
 Update all machines:
 
@@ -143,6 +146,49 @@ Update all machines:
 
 The option -w seconds controls the delay between machines, to avoid large
 changes in power consumption. The default is 60 seconds.
+
+
+Bulk destination change
+-----------------------
+
+The bulk-dest tool changes the list of destinations of one or more miners:
+
+  ./bulk-dest [-a] [-d] [-f] [-v] [-x] destination-file coin host|file ...
+
+The destinations file consists of one destination per line. It can include
+variable assignments and variable expansion in shell format. Lines beginning
+with # are ignored. Example:
+
+  # Wallets
+  ETH=0x0123456789abcdef0123456789abcdef01234567
+  ETC=0xfedcba9876543210fedcba9876543210fedcba98
+
+  eth-crazy-as=eth.stratum1://eth.\${name}@asia.crazypool.org:3333
+  eth-crazy-uw=eth.stratum1://eth.\${name}@us-west.crazypool.org:3333
+  eth-crazy-eu=eth.stratum1://eth.\${name}@eu.crazypool.org:3333
+  etc-crazy-as=etc.stratum1://etc.\${name}@asia.crazypool.org:7000
+  etc-crazy-uw=etc.stratum1://etc.\${name}@us-west.crazypool.org:7000
+  etc-crazy-eu=etc.stratum1://etc.\${name}@eu.crazypool.org:7000
+
+The default coin is ETH. Entries of coins other than the specified one are 
+added to the configuration, but disabled. host|file is either the address of a
+miner to configure, or the name of a file that contains a list of miner
+addresses, one per line.
+
+If there is no entry for the specified coin in the destination file, bulk-dest
+will not change anything. If can be forced to change the destination list by
+setting the -f option.
+
+bulk-dest normally only updates the destination list but doesn't change the
+current destination. To set it to the first enabled entry, add the -a option.
+
+The -d option performs a dry run, where the invocations of the underlying
+set-assoc.py and bulk-config tools are shown, but not executed. -v runs
+set-assoc.py in verbose mode. -x shows shell command execution.
+
+Example:
+
+  ./bulk-dest -a -d dest-file.example etc foo
 
 
 Mosquitto-clients wrapper
