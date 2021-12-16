@@ -69,7 +69,7 @@ first=true
 failed=
 for n in "$@"; do
 	if [ -r "$n" ]; then
-		for m in `awk '{ print \$1 }' $n`; do
+		for m in `awk '/^[^#]/ { print \$1 }' $n`; do
 			! $first && $wait
 			push "$m" "$file" && first=false
 		done

@@ -139,7 +139,7 @@ failed=
 to=
 for n in "$@"; do
 	if [ -r "$n" ]; then
-		for m in `awk '{ print \$1 }' $n`; do
+		for m in `awk '/^[^#]/ { print \$1 }' $n`; do
 			op "$m"
 		done
 	else

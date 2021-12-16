@@ -76,7 +76,7 @@ shift 2
 list=
 for n in "$@"; do
 	if [ -r "$n" ]; then
-		list="$list `awk '{ print \$1 }' $n`"
+		list="$list `awk '/^[^#]/ { print \$1 }' $n`"
 	else
 		list="$list $n"
 	fi
