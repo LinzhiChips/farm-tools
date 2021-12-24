@@ -191,6 +191,25 @@ Example:
   ./bulk-dest -a -d dest-file.example etc foo
 
 
+Bulk-retrieval of fingerprints
+------------------------------
+
+The bulk-fingerprints tool collects fingerprints from miners and prints them on
+standard output.
+
+  ./bulk-fingerprints [-t seconds] [-v] [-x] [host|file ...]
+
+-v enables verbose execution. "-t seconds" changes the timeout for the
+retrieval operation from the default of 30 seconds.
+
+Note that bulk-fingerprints has to interrupt mining and power-cycle hashboards.
+It resumes mining after it has obtained the fingerprints.
+
+The output is of the format board/die=fingerprint, where "board" is the serial
+number of the board, "die" is the die number (0 to 63), and "fingerprint" are
+the 256 hexadecimal digits of the fingerprint.
+
+
 Mosquitto-clients wrapper
 -------------------------
 

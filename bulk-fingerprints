@@ -1,0 +1,107 @@
+#!/bin/bash
+#
+# bulk-fingerprints - Retrieve fingerprints
+#
+# Copyright (C) 2021 Linzhi Ltd.
+#
+# This work is licensed under the terms of the MIT License.
+# A copy of the license can be found in the file COPYING.txt
+#
+
+#
+# bulk-fingerprints is run in two stages: the first stage acts as frontend and
+# processes the arguments. It then uses run-without-mined.py to stop all the
+# mining daemons. run-without-mined.py invokes bulk-fingerprints again, this
+# time with the --ready option. This 2nd stage then retrieves the fingerprints
+# and prints them.
+#
+
+DEFAULT_TIMEOUT_S=30
+DEFAULT_WAIT_S=1
+
+
+usage()
+{
+	cat <<EOF 1>&2
+usage: $0 [-t seconds] [-v] [-x] [host|file ...]
+
+-t seconds
+    if retrieving, wait this many seconds before giving up (default: wait
+    $DEFAULT_TIMEOUT_S seconds)
+-v  verbose more
+-x  show shell commands (set -x)
+EOF
+	exit 1
+}
+
+
+ready=false
+timeout="-W $DEFAULT_TIMEOUT_S"
+verbose=false
+args=
+while [ "$1" ]; do
+	case "$1" in
+	--ready)
+		ready=true;;
+	-t)	case "$2" in
+		0)      timeout=;;
+		"")     usage;;
+		*)      timeout="-W $2";;
+		esac
+		args="$args -t $2"
+		shift;;
+	-v)	verbose=true
+		args="$args -v";;
+	-x)	set -x
+		args="$args -x";;
+	-*)	usage;;
+	*)	break;;
+	esac
+	shift
+done
+
+me=`type -p "$0"`
+if [ -z "$me" ]; then
+        echo "$0: not found" 1>&2
+        exit 1
+fi
+me=`realpath "$me"` || exit
+dir=`dirname "$me/"` || exit
+
+
+dbize()
+{
+	awk -e '/Serial number:/ { serial = $3; }' \
+	    -e '/^[0-9]+ [0-9a-f]/ { if (serial) print serial "/" $1 "=" $2; }'\
+	    -e '/(Done)/ { exit; }'
+}
+
+
+dabs()
+{
+	local name=$1
+	local slot=$2
+
+	mosquitto_sub -R -C 2 $timeout -h "$name" -t /diag/result/dabs | dbize &
+	pid=$?
+	sleep $DEFAULT_WAIT_S
+	mosquitto_pub -h "$name" -t /diag/request -m "dabs $slot" -q 1 || {
+		kill $pid
+		echo "$name: failed" 1>&2
+		failed="$failed $name"
+	}
+	wait
+}
+
+
+if $ready; then
+	dabs "$1" 0
+	dabs "$1" 1
+else
+	if $verbose; then
+		opt=-v
+	else
+		opt=
+	fi
+	$dir/run-without-mined.py $opt "$me --ready $args {}" "$@"
+fi
