@@ -210,6 +210,51 @@ number of the board, "die" is the die number (0 to 63), and "fingerprint" are
 the 256 hexadecimal digits of the fingerprint.
 
 
+Bulk data collection
+--------------------
+
+bulk-collect.py collects data from miners and prints it on standard output.
+
+Data can come from the following types of MQTT topics:
+
+- Retained messages (unless the option -R is set),
+- messages that are sent by the miner in response to a query (MQTT messages
+  sent by clients), or
+- messages that are sent periodically, and arrive before the timeout.
+
+Usage:
+
+  bulk-collect [-R] [-t timeout] [-v] topic|topic=payload|host|file ...
+
+If an argument is a topic without a payload, bulk-collect subscribes to this
+topic and prints the last message received on the topic (or nothing, if no
+message is received). The topic must not contain wildcards. The output format
+is topic=payload.
+
+If there are arguments of the form topic=payload, the corresponding message(s)
+are sent to the miner after all the subscriptions have been requested.
+
+bulk-collect processes miners sequentially.
+
+bulk-collect listens until either at least one message has been received on
+every topic to which it has subscribed, or until the timeout is reached.
+
+The option -R ignores retained messages. -v enables verbose mode. "-t timeout"
+sets the timeout, in seconds. The default timeout is 30 s.
+
+Example:
+
+  bulk-collect \
+    /power/0/total_input \
+    /power/1/total_input \
+    /power/poll=x \
+    miners.list
+
+This command connects to all miners in miners.list, subscribes to the total
+power input topics of the boards in both slots, then requests power statistics
+to be polled.
+
+
 Mosquitto-clients wrapper
 -------------------------
 
