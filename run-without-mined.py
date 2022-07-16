@@ -2,7 +2,7 @@
 #
 # run-without-mined.py - Stop mining daemon(s), run command(s), restart mined(s)
 #
-# Copyright (C) 2021 Linzhi Ltd.
+# Copyright (C) 2021, 2022 Linzhi Ltd.
 #
 # This work is licensed under the terms of the MIT License.
 # A copy of the license can be found in the file COPYING.txt
@@ -238,13 +238,6 @@ def connect_host(name):
 
 
 # --- Command-line processing and main loop -----------------------------------
-
-
-def usage():
-	print("usage: " + sys.argv[0] +
-	    " [-d] [-v] command [host ...]",
-	    file = sys.stderr)
-	sys.exit(1)
 
 
 parser = argparse.ArgumentParser()
