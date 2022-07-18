@@ -1,7 +1,7 @@
 Farm tools
 ==========
 
-Copyright (C) 2021 Linzhi Ltd.
+Copyright (C) 2021, 2022 Linzhi Ltd.
 
 This work is licensed under the terms of the MIT License.
 A copy of the license can be found in the file COPYING.txt
@@ -273,3 +273,11 @@ The options -q, -r, and -v are passed to the Mosquitto clients. If multiple
 message arguments are given, they are concatenated into a single
 space-separated string. Detection of topics relies on the convention of using
 a leading slash.
+
+
+opsd.py
+-------
+
+A daemon to assist with controlling the operations-defined on/off switch.
+Opsd is documented in
+https://github.com/LinzhiChips/doc/blob/master/guide-on-off-ops.txt
