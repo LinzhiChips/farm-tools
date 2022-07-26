@@ -1,0 +1,93 @@
+#!/bin/bash
+#
+# bulk-dest - Update destination lists on multiple miners
+#
+# Copyright (C) 2022 Linzhi Ltd.
+#
+# This work is licensed under the terms of the MIT License.
+# A copy of the license can be found in the file COPYING.txt
+#
+
+
+usage()
+{
+	cat <<EOF 1>&2
+usage: $0 [-1] [-a] [-x] host|file ...
+
+-1  show data from each miner separately. Default: group identical
+    configurations.
+-a  show all destinations. Default: only show enabled destinations.
+-x  set shell tracing with set -x
+EOF
+	exit 1
+}
+
+
+tally=true
+filter="/=!/d;"
+while [ "$1" ]; do
+	case "$1" in
+	-1)	tally=false;;
+	-a)	filter=;;
+	-x)	set -x;;
+	-*)	usage;;
+	*)	break;;
+	esac
+	shift
+done
+
+list=
+for n in "$@"; do
+	if [ -r "$n" ]; then
+		list="$list `awk '/^[^#]/ { print \$1 }' $n`"
+	else
+		list="$list $n"
+	fi
+done
+
+
+me=`type -p "$0"`
+if [ -z "$me" ]; then
+	echo "$0: not found" 1>&2
+	exit 1
+fi
+me=`realpath "$me"` || exit
+dir=`dirname "$me/"` || exit
+
+
+keys=
+first=true
+for n in $list; do
+	out=`$dir/get-assoc.py DEST "$n" | sed "s/^DEST_//;${filter}s/=/ /"`
+	if $tally; then
+		hash=`echo "$out" | md5sum | sed 's/ .*//'`
+		keys=`(echo "$keys"; echo $hash) | sort | uniq`
+
+		v=`eval echo \"\\$host_$hash\"`
+		if [ -z "$v" ]; then
+			eval host_$hash=$n
+		else
+			v=`(echo "$v"; echo $n) | sort | uniq`
+			eval host_$hash=\$v
+		fi
+
+		eval out_$hash=\"\$out\"
+	else
+		$first || echo
+		first=false
+		echo $n:
+		echo "$out"
+	fi
+	first=false
+done
+
+if $tally; then
+	first=true
+	for k in $keys; do
+		$first || echo
+		first=false
+		eval echo \"\$host_$k\" | tr '\n' ' ' | sed 's/ $/:/'
+		echo
+		eval echo \"\$out_$k\"
+	done
+fi

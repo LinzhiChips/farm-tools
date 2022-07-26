@@ -191,6 +191,21 @@ Example:
   ./bulk-dest -a -d dest-file.example etc foo
 
 
+Show destinations
+-----------------
+
+The show-dest tool list the destinations configured on one or more miners:
+
+  /show-dest [-1] [-a] [-x] host|file ...
+
+Without options, it retrieves the destination lists for all miner, then shows
+groups of identical destination settings (same IDs, same URIs) with a list of
+miners that use that combination. Only enabled settings are shown.
+
+The option -1 changes this to show the setting for each miner, without trying
+to group them. The option -a also shows disabled settings.
+
+
 Bulk-retrieval of fingerprints
 ------------------------------
 
