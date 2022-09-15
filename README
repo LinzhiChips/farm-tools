@@ -79,7 +79,7 @@ Arbitrary criteria can be added as jq expressions. Examples:
 
 - Only machines with a peak temperature above 90 C:
 
-  ./list-mienrs ... '.temp > 90'
+  ./list-miners ... '.temp > 90'
 
 
 bulk-config
@@ -196,7 +196,7 @@ Show destinations
 
 The show-dest tool list the destinations configured on one or more miners:
 
-  /show-dest [-1] [-a] [-x] host|file ...
+  ./show-dest [-1] [-a] [-x] host|file ...
 
 Without options, it retrieves the destination lists for all miner, then shows
 groups of identical destination settings (same IDs, same URIs) with a list of
