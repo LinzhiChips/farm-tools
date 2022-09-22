@@ -17,10 +17,11 @@ MOSQ_ERR_TIMEOUT=27
 usage()
 {
 	cat <<EOF 1>&2
-usage: $0 [-t seconds] [-w seconds] [-x]
+usage: $0 [-r] [-t seconds] [-w seconds] [-x]
           [0/|1/]var[=value]|/topic[?cond][=payload]
           [host|file ...]
 
+-r  set the retain flag on the messages sent
 -t seconds
     if retrieving, wait this many seconds before giving up (default: wait
     $DEFAULT_TIMEOUT_S seconds)
@@ -34,9 +35,11 @@ EOF
 
 
 sleep=:
+retain=
 timeout="-W $DEFAULT_TIMEOUT_S"
 while [ "$1" ]; do
 	case "$1" in
+	-r)	retain=-r;;
 	-t)	case "$2" in
 		0)	timeout=;;
 		"")	usage;;
@@ -90,6 +93,7 @@ if [ "$topic" ]; then
 else
 	pub_topic=/config/$area/$var/set
 	sub_topic=/config/$area/$var
+	retain=
 fi
 
 
@@ -126,7 +130,8 @@ op()
 		esac
 	fi
 	if $pub_this; then
-		mosquitto_pub -h "$name" -t "$pub_topic" -m "$val" || {
+		mosquitto_pub -h "$name" -t "$pub_topic" -m "$val" \
+		    -q 1 $retain || {
 			echo "failed: $name" 1>&2
 			failed="$failed $name"
 		}
